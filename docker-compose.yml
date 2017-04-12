@@ -1,0 +1,49 @@
+version: '2'
+services:
+  mail:
+    container_name: csv_mail
+    image: namshi/smtp
+  app:
+    build: .
+    command: bundle exec rails s
+    working_dir: /var/www/csv
+    depends_on:
+      - db
+    volumes:
+      - ./csv:/var/www/csv:Z
+      - ./csv/log:/var/www/csv/log:Z
+      - ./csv/public:/var/www/csv/public:Z
+      - ./csv/tmp:/var/www/csv/tmp:Z
+      - ./bundle:/usr/local/bundle:Z
+      - ./init.sh:/var/www/csv/init.sh:Z
+    expose:
+      - "3000"
+    container_name: csv
+    links:
+      - db
+    env_file:
+      - rails_variables.env
+  web:
+    build:
+      context: ./
+      dockerfile: Dockerfile-nginx
+    links:
+      - app
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:Z
+      - ./nginx/log:/var/log/nginx:Z
+    container_name: csv_nginx
+    ports:
+      - '80:80'
+  db:
+    image: postgres:9.5.5
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - 5432:5432
+    volumes:
+      - ./postgres/init:/docker-entrypoint-initdb.d:Z
+      - ${DOCKER_CSV_POSTGRES_VOLUME}/pg_volume:/var/lib/postgresql/data/pgdata:Z
+    container_name: csv_database
